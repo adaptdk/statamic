@@ -6,6 +6,8 @@ use Statamic\Facades\Search;
 use Statamic\Facades\Site;
 use Statamic\Tags\Concerns;
 use Statamic\Tags\Tags as BaseTags;
+use Illuminate\Pagination\Paginator;
+use Statamic\Extensions\Pagination\LengthAwarePaginator;
 
 class Tags extends BaseTags
 {
@@ -16,22 +18,42 @@ class Tags extends BaseTags
 
     public function results()
     {
+
         if (! $query = request($this->params->get('query', 'q'))) {
             return $this->parseNoResults();
         }
-
+        
+        $offset = $this->params->get('offset');
+        if ($this->params->get('paginate')) {
+            $page = request('page') ?? 1;
+            $offset = ($page - 1) * 5;
+        }
+        
         $builder = Search::index($this->params->get('index'))
             ->ensureExists()
             ->search($query)
             ->withData($this->params->get('supplement_data', true))
             ->limit($this->params->get('limit'))
-            ->offset($this->params->get('offset'));
+            ->offset($offset);
 
         $this->querySite($builder);
         $this->queryStatus($builder);
         $this->queryConditions($builder);
-
+        
         $results = $this->addResultTypes($builder->get());
+
+        if ($this->params->get('paginate')) {
+            $results = new LengthAwarePaginator(
+                $results,
+                $builder->getTotalCount(),
+                $this->params->get('limit'),
+                request('page') ?? 1,
+                [
+                    'path' => Paginator::resolveCurrentPath(),
+                    'query' => ['q' => $query],
+                ]
+            );
+        }
 
         return $this->output($results);
     }

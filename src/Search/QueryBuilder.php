@@ -11,6 +11,7 @@ abstract class QueryBuilder extends BaseQueryBuilder
     protected $query;
     protected $index;
     protected $withData = true;
+    protected $total_count;
 
     public function __construct(Index $index)
     {
@@ -54,5 +55,16 @@ abstract class QueryBuilder extends BaseQueryBuilder
     protected function collect($items = [])
     {
         return new DataCollection($items);
+    }
+
+    protected function limitItems($items)
+    {   
+        $this->total_count = count($items);
+        return $items->slice($this->offset, $this->limit);
+    }
+
+    public function getTotalCount()
+    {  
+        return $this->total_count ?? count($this->items);
     }
 }
