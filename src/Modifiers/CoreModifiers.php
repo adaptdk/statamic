@@ -1032,7 +1032,7 @@ class CoreModifiers extends Modifier
      */
     public function isUrl($value)
     {
-        return filter_var($value, FILTER_VALIDATE_URL) !== false;
+        return Str::isUrl($value);
     }
 
     /**
@@ -1823,6 +1823,10 @@ class CoreModifiers extends Modifier
             return collect($value)->shuffle()->all();
         }
 
+        if ($value instanceof Collection) {
+            return $value->shuffle();
+        }
+
         return Stringy::shuffle($value);
     }
 
@@ -1852,6 +1856,18 @@ class CoreModifiers extends Modifier
     public function slugify($value)
     {
         return Stringy::slugify($value, '-', Config::getShortLocale());
+    }
+
+    /**
+     * Parse with SmartyPants. Aren't you fancy?
+     *
+     * @param $value
+     * @param $params
+     * @return string
+     */
+    public function smartypants($value, $params)
+    {
+        return Html::smartypants($value);
     }
 
     /**
@@ -1966,7 +1982,17 @@ class CoreModifiers extends Modifier
      */
     public function sum($value, $params)
     {
-        return collect($value)->sum(Arr::get($params, 0, null));
+        $key = Arr::get($params, 0, null);
+
+        return collect($value)->reduce(function ($carry, $value) use ($key) {
+            if ($key) {
+                $value = data_get($value, $key);
+            }
+
+            $value = $value instanceof Value ? $value->value() : $value;
+
+            return $carry + (int) $value;
+        }, 0);
     }
 
     /**
@@ -2371,8 +2397,16 @@ class CoreModifiers extends Modifier
      */
     public function embedUrl($url)
     {
-        if (Str::contains($url, 'youtube')) {
-            return str_replace('watch?v=', 'embed/', $url);
+        if (Str::contains($url, 'vimeo')) {
+            $url = str_replace('/vimeo.com', '/player.vimeo.com/video', $url);
+
+            if (Str::contains($url, '?')) {
+                $url = str_replace('?', '?dnt=1&', $url);
+            } else {
+                $url .= '?dnt=1';
+            }
+
+            return $url;
         }
 
         if (Str::contains($url, 'youtu.be')) {
@@ -2382,12 +2416,14 @@ class CoreModifiers extends Modifier
             if (Str::contains($url, '?t=')) {
                 $url = str_replace('?t=', '?start=', $url);
             }
-
-            return $url;
         }
 
-        if (Str::contains($url, 'vimeo')) {
-            return str_replace('/vimeo.com', '/player.vimeo.com/video', $url);
+        if (Str::contains($url, 'youtube.com/watch?v=')) {
+            $url = str_replace('watch?v=', 'embed/', $url);
+        }
+
+        if (Str::contains($url, 'youtube.com')) {
+            $url = str_replace('youtube.com', 'youtube-nocookie.com', $url);
         }
 
         return $url;

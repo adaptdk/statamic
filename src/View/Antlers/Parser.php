@@ -932,7 +932,7 @@ class Parser
                     $has_children = false;
                 }
 
-                $replacement = $this->parse($orig_text, $child);
+                $replacement = $this->parse($orig_text, array_merge($data, $child));
 
                 // If this is the first loop we'll use $tag as reference, if not
                 // we'll use the previous tag ($next_tag)
@@ -1458,7 +1458,7 @@ class Parser
         try {
             return Modify::value($value)->context($context)->$modifier($parameters)->fetch();
         } catch (ModifierException $e) {
-            throw_if(config('app.debug'), $e);
+            throw_if(config('app.debug'), ($prev = $e->getPrevious()) ? $prev : $e);
             Log::notice(sprintf('Error in [%s] modifier: %s', $e->getModifier(), $e->getMessage()));
 
             return $value;
